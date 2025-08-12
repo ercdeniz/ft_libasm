@@ -3,12 +3,14 @@ ASM = nasm
 CC = gcc
 AR = ar
 ASM_FLAGS = -f elf64
-CC_FLAGS = -Wall -Wextra -Werror
+CC_FLAGS = -Wall -Wextra -Werror -fPIE
 AR_FLAGS = rcs
 
 OBJ_DIR = obj
-TEST_DIR = tests
+TEST_DIR = test
 SRC_DIR = src
+LOG_DIR = .test_log
+TEST_SCRIPT = ./test/test.sh
 
 ASM_SRCS = $(notdir $(wildcard $(SRC_DIR)/*.s))
 OBJS = $(addprefix $(OBJ_DIR)/, $(ASM_SRCS:.s=.o))
@@ -38,28 +40,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.s | $(OBJ_DIR)
 	@$(ASM) $(ASM_FLAGS) $< -o $@
 
 test%:
-	@test_name=$*; \
-	if [ -f "$(TEST_DIR)/$$test_name.c" ]; then \
-		compile_output=$$($(CC) $(CC_FLAGS) $(TEST_DIR)/$$test_name.c -L. -lasm -o test_$$test_name 2>&1); \
-		if [ $$? -eq 0 ]; then \
-			./test_$$test_name; \
-			rm -f test_$$test_name; \
-		else \
-			echo "$(RED)❌ ft_$$test_name compilation failed$(NC)"; \
-			echo "$$compile_output" | grep -v "warning:" | grep -v "NOTE:" | sed 's/^/  /'; \
-		fi; \
-	else \
-		echo "$(RED)❌ The test called \"$$test_name\" was not found!"; \
-		echo "$(BLUE)Available tests:"; \
-		for test in $(TEST_NAMES); do echo "$(BLUE) => $(MAGENTA)make ${YELLOW}test$$test$(NC)"; done; \
-	fi
+	@$(TEST_SCRIPT) $*
 
 test:
-	@echo "$(GREEN)🧪 Running all tests...$(NC)"
-	@for test_name in $(TEST_NAMES); do \
-		$(MAKE) test$$test_name --no-print-directory; \
-		echo ""; \
-	done
+	@$(TEST_SCRIPT)
 
 help:
 	@echo "$(BLUE)Available commands:$(NC)"
@@ -75,6 +59,8 @@ help:
 clean:
 	@echo "$(RED)Cleaning $(OBJ_DIR)$(NC)"
 	@rm -rf $(OBJ_DIR)
+	@echo "$(RED)Cleaning $(LOG_DIR)$(NC)"
+	@rm -rf $(LOG_DIR)
 
 fclean: clean
 	@echo "$(RED)Cleaning $(NAME)$(NC)"

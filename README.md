@@ -1,25 +1,28 @@
-# libasm
+# ***libasm***
+
+## İçindekiler
 
 - [Genel Bakış](#genel-bakış)
 - [64-bit (x86-64) Register'lar ve Görevleri](#64-bit-x86-64-registerlar-ve-görevleri)
+- [Korumalı ve Korumasız Register'lar](#korumalı-ve-korumasız-registerlar)
 - [64-bit (x86-64) Assembly Temel Komutları (Intel Syntax)](#64-bit-x86-64-assembly-temel-komutları-intel-syntax)
 - [Flags Register - İşlemci'nin Hafızası](#flags-register---i̇şlemcinin-hafızası)
 - [Stack - PUSH/POP İşlemleri](#stack---pushpop-i̇şlemleri)
 - [Section Türleri](#section-türleri)
 - [Assembly Label'ları (Etiketler)](#assembly-labelları-etiketler)
+- [PIE (Position Independent Executable) Nedir?](#pie-position-independent-executable-nedir)
 - [Derleme ve Çalıştırma](#derleme-ve-çalıştırma)
-- [Kullanılabilir Komutlar](#kullanılabilir-komutlar)
 - [Fonksiyonlar](#fonksiyonlar)
 
 ## Genel Bakış
 >  **libasm**, dize manipülasyonu için basit ve hızlı bir assembly kütüphanesidir.
-
+>
 >  Tüm işlemler **register**'lar üzerinde gerçekleşir; fonksiyon argümanları ve dönüş değerleri doğrudan register'lar ile yönetilir.
-
+>
 >  Doğru register seçimi, kodun optimizasyonu için kritik öneme sahiptir.
-
+>
 >  Register'lar, CPU'nun ultra hızlı hafıza birimleridir; **RAM'den 100-200 kat daha hızlı** fakat sayıca sınırlıdır.
-
+>
 >  Geçici veri saklama, hesaplama ve işlem yönetimi için kullanılırlar.
 
 ## 64-bit (x86-64) Register'lar ve  Görevleri
@@ -42,16 +45,16 @@
 
 **Tüm genel amaçlı register'lar** aynı alt-parça sistemine sahiptir:
 
-| Register | 64-bit | 32-bit | 16-bit | 8-bit Alt | 8-bit Üst |
-|----------|--------|--------|--------|-----------|-----------|
-| **A register** | `rax` | `eax` | `ax` | `al` | `ah` |
-| **B register** | `rbx` | `ebx` | `bx` | `bl` | `bh` |
-| **C register** | `rcx` | `ecx` | `cx` | `cl` | `ch` |
-| **D register** | `rdx` | `edx` | `dx` | `dl` | `dh` |
-| **SI register** | `rsi` | `esi` | `si` | `sil` | - |
-| **DI register** | `rdi` | `edi` | `di` | `dil` | - |
-| **BP register** | `rbp` | `ebp` | `bp` | `bpl` | - |
-| **SP register** | `rsp` | `esp` | `sp` | `spl` | - |
+| Register          | 64-bit | 32-bit | 16-bit | 8-bit Alt | 8-bit Üst |
+|-------------------|--------|--------|--------|-----------|-----------|
+| **A register**    | `rax`  | `eax`  |  `ax`  |   `al`    |    `ah`   |
+| **B register**    | `rbx`  | `ebx`  |  `bx`  |   `bl`    |    `bh`   |
+| **C register**    | `rcx`  | `ecx`  |  `cx`  |   `cl`    |    `ch`   |
+| **D register**    | `rdx`  | `edx`  |  `dx`  |   `dl`    |    `dh`   |
+| **SI register**   | `rsi`  | `esi`  |  `si`  |   `sil`   |     -     |
+| **DI register**   | `rdi`  | `edi`  |  `di`  |   `dil`   |     -     |
+| **BP register**   | `rbp`  | `ebp`  |  `bp`  |   `bpl`   |     -     |
+| **SP register**   | `rsp`  | `esp`  |  `sp`  |   `spl`   |     -     |
 
 > **Not:** `rsi`, `rdi`, `rbp`, `rsp` register'larında `ah`, `bh` benzeri üst 8-bit parçalar yoktur.
 
@@ -90,6 +93,75 @@ mov ebx, ecx     ; rbx = rcx (32-bit)
 mov ax, 100      ; rax'ın alt 16 biti
 mov bx, cx       ; rbx = rcx (16-bit)
 ```
+
+## Korumalı ve Korumasız Register'lar
+
+> x86-64 System V ABI'de bazı register'lar **caller-saved** (çağıran korur), bazıları **callee-saved** (çağrılan korur) olarak tanımlanır. Bu kurallar fonksiyon çağrılarında register değerlerinin korunması için kritiktir.
+
+### Korumasız Register'lar (Caller-Saved / Volatile)
+> Bu register'lar fonksiyon çağrısı sırasında **değişebilir**. Fonksiyon çağrısından önce saklanmalıdır.
+
+| Register  | Kullanım Alanı                    | Korunma Sorumluluğu           |
+|-----------|-----------------------------------|-------------------------------|
+| `rax`     | Dönüş değeri, geçici hesaplamalar |  Çağıran fonksiyon korur      |
+| `rcx`     | 4. argüman, geçici hesaplamalar   |  Çağıran fonksiyon korur      |
+| `rdx`     | 3. argüman, geçici hesaplamalar   |  Çağıran fonksiyon korur      |
+| `rsi`     | 2. argüman                        |  Çağıran fonksiyon korur      |
+| `rdi`     | 1. argüman                        |  Çağıran fonksiyon korur      |
+| `r8-r11`  | Geçici register'lar               |  Çağıran fonksiyon korur      |
+
+### Korumalı Register'lar (Callee-Saved / Non-Volatile)
+> Bu register'lar fonksiyon çağrısı sonrasında **aynı değerde** olmalıdır. Kullanılacaksa fonksiyon başında saklanıp, sonunda geri yüklenmelidir.
+
+| Register  | Kullanım Alanı                | Korunma Sorumluluğu           |
+|-----------|-------------------------------|-------------------------------|
+| `rbx`     | Genel amaçlı veri saklama     |  Çağrılan fonksiyon korur     |
+| `rbp`     | Stack frame pointer           |  Çağrılan fonksiyon korur     |
+| `r12-r15` | Genel amaçlı register'lar     |  Çağrılan fonksiyon korur     |
+
+### Özel Register'lar
+| Register | Durum                  | Açıklama                        |
+|----------|------------------------|---------------------------------|
+| `rsp`    |  **Daima korunmalı**   | Stack pointer - değişmemeli     |
+| `rip`    |  **Sistem yönetimi**   | Instruction pointer             |
+
+### Pratik Örnek: Register Koruma
+
+```assembly
+ft_function:
+    ; Korumalı register kullanacaksak sakla
+    push rbx        ; rbx korumalı - saklanmalı
+    push r12        ; r12 korumalı - saklanmalı
+    
+    ; İşlemler
+    mov rbx, rdi    ; rbx'i güvenle kullan
+    mov r12, rsi    ; r12'yi güvenle kullan
+    
+    call malloc     ; malloc çağrısı - korumasız register'lar değişebilir!
+    ; rax, rcx, rdx, rsi, rdi, r8-r11 değişmiş olabilir
+    ; ama rbx ve r12 hala güvenli
+    
+    ; Korumalı register'ları geri yükle
+    pop r12         ; r12'yi geri yükle
+    pop rbx         ; rbx'i geri yükle
+    ret
+```
+
+### Kurallar ve İpuçları
+| Durum                             | Kural                                         | Örnek                          |
+|-----------------------------------|-----------------------------------------------|--------------------------------|
+| **Korumasız register kullanımı**  | Fonksiyon çağrısından önce sakla              | `push rax; call func; pop rax` |
+| **Korumalı register kullanımı**   | Fonksiyon başında sakla, sonunda geri yükle   | `push rbx; ... ; pop rbx`      |
+| **Stack balance**                 | Her push için bir pop, LIFO sırasına dikkat   | -                              |
+| **Argüman passing**               | rdi, rsi, rdx, rcx, r8, r9 sırası             | Standart çağrı konvansiyonu    |
+
+### Özet
+- 🔴 **Korumasız**: rax, rcx, rdx, rsi, rdi, r8-r11 → Fonksiyon çağrısında değişebilir
+- 🟢 **Korumalı**: rbx, rbp, r12-r15 → Fonksiyon çağrısından sonra aynı değerde olmalı  
+- 🔒 **Özel**: rsp (stack pointer) → Asla bozulmamalı
+
+**Bu kurallar, farklı fonksiyonların birlikte çalışabilmesi için gerekli protokoldür!**
+
 
 ## 64-bit (x86-64) Assembly Temel Komutları (Intel Syntax)
 
@@ -142,21 +214,21 @@ mov bx, cx       ; rbx = rcx (16-bit)
 
 ### Önemli flag'ler
 
-| Flag   | İsim | Ne Zaman Set Olur | Örnek |
-|--------|------|-------------------|-------|
-| **ZF** | Zero Flag | Sonuç 0 ise (eşitlik durumu) | `cmp rax, 5` → rax=5 ise ZF=1 |
-| **CF** | Carry Flag | Taşma olursa | Unsigned overflow |
-| **SF** | Sign Flag | Sonuç negatifse | `sub rax, rbx` → rax<rbx ise SF=1 |
-| **OF** | Overflow Flag | Signed overflow | Signed işlemlerde taşma |
+| Flag   | İsim          | Ne Zaman Set Olur            | Örnek                             |
+|--------|---------------|------------------------------|-----------------------------------|
+| **ZF** | Zero Flag     | Sonuç 0 ise (eşitlik durumu) | `cmp rax, 5` → rax=5 ise ZF=1     |
+| **CF** | Carry Flag    | Taşma olursa                 | Unsigned overflow                 |
+| **SF** | Sign Flag     | Sonuç negatifse              | `sub rax, rbx` → rax<rbx ise SF=1 |
+| **OF** | Overflow Flag | Signed overflow              | Signed işlemlerde taşma           |
 
 ### Flag ile Jump Komutları
 
-| Komut | Kontrol Ettiği Flag | Anlamı | Örnek |
-|-------|---------------------|--------|-------|
-| `je`/`jz` | ZF = 1 | Jump if Equal/Zero | `cmp rax, 0` sonrası |
-| `jne`/`jnz` | ZF = 0 | Jump if Not Equal/Not Zero | Farklıysa git |
-| `jg` | ZF=0 AND SF=OF | Jump if Greater | İşaretli büyükse |
-| `jl` | SF ≠ OF | Jump if Less | İşaretli küçükse |
+| Komut      | Kontrol Ettiği Flag     | Anlamı                          | Örnek                  |
+|------------|-------------------------|---------------------------------|------------------------|
+| `je`/`jz`  | ZF = 1                  | Eşitse/Sıfırsa atla             | `cmp rax, 0` sonrası   |
+| `jne`/`jnz`| ZF = 0                  | Eşit değilse/Sıfır değilse atla | Farklıysa git          |
+| `jg`       | ZF = 0 ve SF = OF       | Büyükse atla (signed)           | İşaretli büyükse       |
+| `jl`       | SF ≠ OF                 | Küçükse atla (signed)           | İşaretli küçükse       |
 
 ### Çalışma Mantığı
 
@@ -178,7 +250,7 @@ je .done                   ; ZF flag'ini kontrol et ve karar ver
 ### Stack Mantığı
 
 ```
-Stack = Tabak Yığını
+Stack
   ↓ PUSH (ekle)
 [Değer3]  ← Son eklenen (en üstte)
 [Değer2]
@@ -187,11 +259,10 @@ Stack = Tabak Yığını
 ```
 
 ### PUSH ve POP Komutları
-
-| Komut | İşlev | Örnek | Açıklama |
-|-------|-------|-------|----------|
-| `push rdi` | Stack'e ekle | `push rdi` | rdi'nin değerini stack'e koy |
-| `pop rax` | Stack'ten çıkar | `pop rax` | Stack'teki son değeri al, rax'a koy |
+| Komut      | İşlev             | Örnek      | Açıklama                          |
+|------------|-------------------|------------|-----------------------------------|
+| `push rdi` | Stack'e ekle      | `push rdi` | `rdi` değerini stack'e koyar      |
+| `pop rax`  | Stack'ten çıkar   | `pop rax`  | Stack'teki son değeri `rax`'a alır|
 
 ### Pratik Örnek: ft_strcpy
 
@@ -231,13 +302,12 @@ rax = 0x1000 (orijinal adres geri alındı!)
 ```
 
 ### Stack Kullanım Alanları
-
-| Kullanım | Açıklama | Örnek |
-|----------|----------|-------|
-| **Register koruma** | Fonksiyonlarda register'ları sakla | `push rax; call func; pop rax` |
-| **Geçici veri** | Kısa süreli veri saklama | Hesaplama sonuçları |
-| **Fonksiyon çağrıları** | Return adresi saklama | `call` komutu otomatik yapar |
-| **Local değişkenler** | Fonksiyon içi değişkenler | Stack frame |
+| Kullanım              | Açıklama                         | Örnek                         |
+|-----------------------|----------------------------------|-------------------------------|
+| **Register koruma**   | Fonksiyonlarda register saklama  | `push rax; call func; pop rax`|
+| **Geçici veri**       | Kısa süreli veri saklama         | Hesaplama sonuçları           |
+| **Fonksiyon çağrıları**| Return adresi saklama           | `call` komutu otomatik yapar  |
+| **Local değişkenler** | Fonksiyon içi değişkenler        | Stack frame                   |
 
 ### Önemli Kurallar
 
@@ -286,12 +356,11 @@ ft_strlen:              ; Global label - fonksiyon başlangıcı
 ```
 
 ### Jump Komutları ile Kullanım
-
-| Komut | Açıklama | Örnek |
-|-------|----------|-------|
-| `jmp .label` | Koşulsuz sıçrama | `jmp .count_loop` |
-| `je .label` | Eşitse sıçrama | `je .done` |
-| `jne .label` | Eşit değilse sıçrama | `jne .error` |
+| Komut         | Açıklama               | Örnek             |
+|---------------|------------------------|-------------------|
+| `jmp .label`  | Koşulsuz atlama        | `jmp .count_loop` |
+| `je .label`   | Eşitse atlama          | `je .done`        |
+| `jne .label`  | Eşit değilse atlama    | `jne .error`      |
 
 ### Akış Kontrolü
 
@@ -310,10 +379,57 @@ ft_strlen:
 
 **Label'lar kodda "yer imleri" gibi çalışır - assembly'nin goto sistemi!**
 
+## PIE (Position Independent Executable) Nedir?
+
+> Bu projede bizden derleme sırasında `-no-pie` **kullanmamamız** isteniyor. Peki neden? Bu flag programın güvenli çalışmasını garanti edecek olan PIE yaklaşımını devre dışı bırakır. Bu da güvenlik bakımından risklidir.
+
+- **Amaç: PIE, çalıştırılabilir dosyanın bellekte herhangi bir adrese yüklenebilmesini sağlar; böylece kodun sabit adresleri olmaz.**
+
+- **Nasıl çalışır: Linux'ta PIE ile oluşturulan ELF dosyasının türü DYN olur.** (ELF: Linux yürütülebilir dosya biçimi. DYN: "Dynamic" türünde, taşınabilir adresli dosya.)
+
+- **Kod adreslemeleri RIP-relative veya GOT/PLT üzerinden yapılır.** (RIP: x86-64'te Instruction Pointer. RIP-relative: mevcut konuma göre adresleme. GOT: Global Offset Table — adresleri tutan tablo. PLT: Procedure Linkage Table — fonksiyon çağrısı köprüsü.) 
+
+- **Dinamik bağlayıcı yükleme anında adresleri çözer.** (Dynamic linker: Çalışma anında kütüphane/fonksiyon adreslerini bağlayan bileşen.)
+
+- **Non-PIE farkı: Non-PIE (Type: EXEC) sabit yükleme adresi kullanır; kod adresleri tahmin edilebilir olur ve istismar kolaylaşır.** (EXEC: Sabit konumlu yürütülebilir türü.)
+
+- **Güvenlik etkisi: PIE, ASLR ile birleşince ana yürütülebilir dosyanın başlangıç adresini rastgele yapar; ROP gibi adres-tahmine dayalı saldırıları zorlaştırır.** (ASLR: Address Space Layout Randomization - Bellek bölgelerini her çalıştırmada rastgele yerleştirme. ROP: Return-Oriented Programming - var olan kod parçacıklarıyla saldırı tekniği.)
+
+- **Önemli not: PIE tek başına güvenlik değildir; ASLR kapalıysa veya info leak varsa etkisi azalır.** (Info leak: Bellek adresleri gibi gizli bilgilerin sızması.)
+
+- **Teknik mekanizma:**
+    - Aynı dosya içindeki erişimler RIP-relative talimatlarla yapılır.
+    - Dış semboller (kütüphane fonksiyonları) GOT/PLT üzerinden dolaylı çağrılır.
+
+- **Performans ve maliyet:**
+    - x86-64'te ek maliyet genelde çok küçüktür. (RIP-relative donanımsal olarak hızlıdır.)
+    - İlk yüklemede küçük bir gecikme ve dosya boyutunda hafif artış olabilir.
+    - Not: 32-bit sistemlerde GOT erişimleri nispeten daha maliyetli olabilir. (Bu proje 64-bit.)
+
+- **Nasıl derlenir / denetlenir:**
+    ```bash
+    # Derleme (C dosyasını PIE olarak derle)
+    gcc -fPIE -O2 main.c -pie -o app
+    # -fPIE: Konumdan bağımsız kod üretir
+    # -pie: Çıktıyı PIE olarak bağlar
+    ```
+    ```bash
+    # Doğrulama: ELF dosya türünü kontrol et
+    readelf -h app | grep Type
+    # Çıktı: Type: DYN (PIE ise DYN olmalı)
+    ```
+    ```bash
+    # Doğrulama: Dosya türünü kontrol et
+    file app
+    # Çıktı: "position independent executable"
+    ```
+
+- **Sınırlar: PIE, bellek sızıntılarını veya JIT tabanlı exploitleri tek başına engellemez; ASLR entropisi ve kernel ayarları etkilidir.** (JIT: Just-In-Time compilation — çalışma anında derleme.)
+
 
 ## Derleme ve Çalıştırma
 
-Assembly kodu genellikle bir **assembler** (derleyici) ile derlenir. Örneğin, x86 mimarisi için `nasm`, `gas` (GNU Assembler) gibi araçlar kullanılır. Derleme sonucu bir **object file** (`.o`) elde edilir.
+Assembly kodu genellikle bir **assembler** (derleyici) ile derlenir. Örneğin, x86 mimarisi için `nasm` gibi araçlar kullanılır. Derleme sonucu bir **object file** (`.o`) elde edilir.
 
 C ile entegrasyon için şu yapı kullanılır:
 
@@ -394,4 +510,7 @@ int main() {
 
 - `ft_strlen`: Bir dize uzunluğunu hesaplar.
 - `ft_strcpy`: Bir dizeyi başka bir dizeye kopyalar.
-
+- `ft_strcmp`: İki dizeyi karşılaştırır.
+- `ft_strdup`: Bir dizeyi kopyalar ve yeni bir bellek alanında saklar.
+- `ft_write` : Bir fd'ye veri yazar.
+- `ft_read`  : Bir fd'den veri okur.
