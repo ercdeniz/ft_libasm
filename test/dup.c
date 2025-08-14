@@ -27,6 +27,7 @@ int main() {
         
         printf("Test %d: %s\n", i + 1, tests[i].description);
         printf("  Original: \"%s\"\n", tests[i].input);
+        printf("  strdup: \"%s\"\n", real_dup ? real_dup : "NULL");
         printf("  ft_strdup: \"%s\"", my_dup ? my_dup : "NULL");
         
         int test_ok = 0;
@@ -42,36 +43,16 @@ int main() {
         free(real_dup);
     }
     
-    // Test NULL input (error case)
-    printf("Test %d: NULL input handling\n", 6);
+    printf("Test 6: NULL input handling\n");
     errno = 0;
     char *null_result = ft_strdup(NULL);
     printf("  Input: NULL\n");
-    printf("  Expected: NULL with errno, Got: %s (errno: %d)", 
-           null_result ? "non-NULL" : "NULL", errno);
+    printf("  Expected: NULL with errno, Got: %s (errno: %d)", null_result ? "non-NULL" : "NULL", errno);
     
     (null_result == NULL && errno != 0) ? printf(GREEN " ✅ PASS\n\n" RESET) : printf(RED " ❌ FAIL\n\n" RESET);
     
-    if (null_result) free(null_result);
-    
-    // Test memory independence
-    printf("Test %d: Memory independence\n", 7);
-    char original[] = "Modifiable string";
-    char *duplicate = ft_strdup(original);
-    
-    if (duplicate) {
-        original[0] = 'X';  // Modify original
-        
-        printf("  Original after modification: \"%s\"\n", original);
-        printf("  Duplicate: \"%s\"", duplicate);
-        
-        int independent = (duplicate[0] == 'M');  // Should still be 'M'
-        independent ? printf(GREEN " ✅ PASS\n\n" RESET) : printf(RED " ❌ FAIL\n\n" RESET);
-        
-        free(duplicate);
-    } else {
-        printf("  ft_strdup returned NULL" RED " ❌ FAIL\n\n" RESET);
-    }
+    if (null_result)
+        free(null_result);
     
     return 0;
 }

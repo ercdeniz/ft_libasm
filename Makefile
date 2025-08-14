@@ -3,7 +3,7 @@ ASM = nasm
 CC = gcc
 AR = ar
 ASM_FLAGS = -f elf64
-CC_FLAGS = -Wall -Wextra -Werror -fPIE
+CC_FLAGS = -Wall -Wextra -Werror -fPIC -pie
 AR_FLAGS = rcs
 
 OBJ_DIR = obj
@@ -39,10 +39,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.s | $(OBJ_DIR)
 	@echo "$(GREEN)Assembling $(YELLOW)$<...$(NC)"
 	@$(ASM) $(ASM_FLAGS) $< -o $@
 
-test%:
+test%: all
 	@$(TEST_SCRIPT) $*
 
-test:
+test: all
 	@$(TEST_SCRIPT)
 
 help:

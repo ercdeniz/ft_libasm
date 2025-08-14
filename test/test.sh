@@ -59,11 +59,39 @@ run_all_tests() {
         compile_output=$(${CC} ${CC_FLAGS} "$test_file" -L. -lasm -o "test_$test_name" 2>&1)
         
         if [ $? -eq 0 ]; then
-            test_output=$(./test_$test_name 2>&1 | sed 's/\x1b\[[0-9;]*m//g')
+            ./test_$test_name > .test_log/$test_name.txt 2>&1
+            test_exit_code=$?
             
-            if echo "$test_output" | grep -q "FAIL"; then
+            sed -i 's/\x1b\[[0-9;]*m//g' .test_log/$test_name.txt
+            
+            test_output=$(cat .test_log/$test_name.txt)
+            
+            if [ $test_exit_code -ne 0 ]; then
+                echo -e "${RED}❌ FAIL${NC} $test_name (${MAGENTA}crashed with exit code $test_exit_code${NC} - log: .test_log/$test_name.txt)"
+                
+                {
+                    echo "=== TEST CRASHED ==="
+                    echo "Test: $test_name"
+                    echo "Exit code: $test_exit_code"
+                    case $test_exit_code in
+                        139) echo "Reason: Segmentation fault (SIGSEGV)" ;;
+                        134) echo "Reason: Abort signal (SIGABRT)" ;;
+                        136) echo "Reason: Floating point exception (SIGFPE)" ;;
+                        132) echo "Reason: Illegal instruction (SIGILL)" ;;
+                        *) echo "Reason: Unknown error (exit code $test_exit_code)" ;;
+                    esac
+                    echo ""
+                    echo "=== PARTIAL OUTPUT BEFORE CRASH ==="
+                    if [ -n "$test_output" ] && [ "$test_output" != "" ]; then
+                        echo "$test_output"
+                    else
+                        echo "(No output captured - program crashed immediately)"
+                    fi
+                } > .test_log/$test_name.txt
+                
+                failed=$((failed + 1))
+            elif echo "$test_output" | grep -q "FAIL"; then
                 echo -e "${RED}❌ FAIL${NC} $test_name (${MAGENTA}log file =>${NC} .test_log/$test_name.txt)"
-                echo "$test_output" > .test_log/$test_name.txt
                 failed=$((failed + 1))
             else
                 echo -e "${GREEN}✅ PASS${NC} $test_name"
